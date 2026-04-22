@@ -1,5 +1,7 @@
 # NES Emulator (Learning Project)
 
+![NES Emulator](GH-NES-graphic.png)
+
 This repo is a clean starting point for a Nintendo Entertainment System
 emulator written in C++20. It focuses on clarity and testability so you can
 understand how each subsystem works while you build it up incrementally.
