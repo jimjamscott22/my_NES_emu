@@ -5,6 +5,7 @@
 #include "types.h"
 
 class Bus;
+class Cpu6502;
 
 enum class StatusFlag : u8 {
     Carry = 1 << 0,
@@ -20,7 +21,7 @@ enum class StatusFlag : u8 {
 struct Instruction {
     const char* name;
     u8 base_cycles;
-    u8 (class Cpu6502::*handler)();
+    u8 (Cpu6502::*handler)();
 };
 
 struct AddressingResult {
@@ -61,11 +62,20 @@ private:
 
     u8 fetch8();
     u16 fetch16();
+    u16 read16_zp(u8 zp_addr);  // zero-page 16-bit read; high byte wraps within page
 
+    // Addressing modes — each returns {effective_addr, value_at_addr, page_crossed}
     AddressingResult immediate();
     AddressingResult zero_page();
+    AddressingResult zero_page_x();
+    AddressingResult zero_page_y();
     AddressingResult absolute();
+    AddressingResult absolute_x();
+    AddressingResult absolute_y();
     AddressingResult relative();
+    AddressingResult indirect();          // for JMP ($addr); implements 6502 page-wrap bug
+    AddressingResult indexed_indirect();  // (zp,X)
+    AddressingResult indirect_indexed();  // (zp),Y
 
     void set_flag(StatusFlag flag, bool value);
     void update_zn(u8 value);
@@ -74,35 +84,129 @@ private:
 
     u8 adc(u8 value);
     u8 branch_if(bool condition);
+    void compare(u8 reg, u8 value);
 
     // opcode handlers return any extra cycles incurred (page crossings/branches)
     u8 op_nop();
+
+    // LDA
     u8 op_lda_imm();
     u8 op_lda_zp();
+    u8 op_lda_zpx();
     u8 op_lda_abs();
+    u8 op_lda_absx();
+    u8 op_lda_absy();
+    u8 op_lda_indx();
+    u8 op_lda_indy();
+
+    // STA
     u8 op_sta_zp();
+    u8 op_sta_zpx();
     u8 op_sta_abs();
+    u8 op_sta_absx();
+    u8 op_sta_absy();
+    u8 op_sta_indx();
+    u8 op_sta_indy();
+
+    // LDX
     u8 op_ldx_imm();
     u8 op_ldx_zp();
+    u8 op_ldx_zpy();
     u8 op_ldx_abs();
+    u8 op_ldx_absy();
+
+    // LDY
     u8 op_ldy_imm();
     u8 op_ldy_zp();
+    u8 op_ldy_zpx();
     u8 op_ldy_abs();
+    u8 op_ldy_absx();
+
+    // STX
+    u8 op_stx_zp();
+    u8 op_stx_abs();
+    u8 op_stx_zpy();
+
+    // STY
+    u8 op_sty_zp();
+    u8 op_sty_abs();
+    u8 op_sty_zpx();
+
+    // ADC
     u8 op_adc_imm();
     u8 op_adc_zp();
+    u8 op_adc_zpx();
     u8 op_adc_abs();
+    u8 op_adc_absx();
+    u8 op_adc_absy();
+    u8 op_adc_indx();
+    u8 op_adc_indy();
+
+    // SBC
     u8 op_sbc_imm();
     u8 op_sbc_zp();
+    u8 op_sbc_zpx();
     u8 op_sbc_abs();
+    u8 op_sbc_absx();
+    u8 op_sbc_absy();
+    u8 op_sbc_indx();
+    u8 op_sbc_indy();
+
+    // AND
+    u8 op_and_imm();
+    u8 op_and_zp();
+    u8 op_and_zpx();
+    u8 op_and_abs();
+    u8 op_and_absx();
+    u8 op_and_absy();
+    u8 op_and_indx();
+    u8 op_and_indy();
+
+    // ORA
+    u8 op_ora_imm();
+    u8 op_ora_zp();
+    u8 op_ora_zpx();
+    u8 op_ora_abs();
+    u8 op_ora_absx();
+    u8 op_ora_absy();
+    u8 op_ora_indx();
+    u8 op_ora_indy();
+
+    // EOR
+    u8 op_eor_imm();
+    u8 op_eor_zp();
+    u8 op_eor_zpx();
+    u8 op_eor_abs();
+    u8 op_eor_absx();
+    u8 op_eor_absy();
+    u8 op_eor_indx();
+    u8 op_eor_indy();
+
+    // CMP
+    u8 op_cmp_imm();
+    u8 op_cmp_zp();
+    u8 op_cmp_zpx();
+    u8 op_cmp_abs();
+    u8 op_cmp_absx();
+    u8 op_cmp_absy();
+    u8 op_cmp_indx();
+    u8 op_cmp_indy();
+
+    // Transfers
     u8 op_tax();
     u8 op_tay();
     u8 op_txa();
     u8 op_tya();
+
+    // Stack
     u8 op_pha();
     u8 op_pla();
     u8 op_php();
     u8 op_plp();
+
+    // Control flow
     u8 op_jmp_abs();
+    u8 op_jmp_ind();
     u8 op_jsr();
     u8 op_rts();
     u8 op_beq();
@@ -113,4 +217,3 @@ private:
     static std::array<Instruction, 256> build_table();
     static const std::array<Instruction, 256> kInstructionTable;
 };
-
