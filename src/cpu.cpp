@@ -170,6 +170,42 @@ void Cpu6502::compare(u8 reg, u8 value) {
     update_zn(result);
 }
 
+u8 Cpu6502::do_asl(u8 v) {
+    set_flag(StatusFlag::Carry, (v & 0x80) != 0);
+    u8 result = static_cast<u8>(v << 1);
+    update_zn(result);
+    return result;
+}
+
+u8 Cpu6502::do_lsr(u8 v) {
+    set_flag(StatusFlag::Carry, (v & 0x01) != 0);
+    u8 result = v >> 1;
+    update_zn(result);
+    return result;
+}
+
+u8 Cpu6502::do_rol(u8 v) {
+    u8 old_carry = flag(StatusFlag::Carry) ? 1 : 0;
+    set_flag(StatusFlag::Carry, (v & 0x80) != 0);
+    u8 result = static_cast<u8>((v << 1) | old_carry);
+    update_zn(result);
+    return result;
+}
+
+u8 Cpu6502::do_ror(u8 v) {
+    u8 old_carry = flag(StatusFlag::Carry) ? 0x80 : 0;
+    set_flag(StatusFlag::Carry, (v & 0x01) != 0);
+    u8 result = static_cast<u8>((v >> 1) | old_carry);
+    update_zn(result);
+    return result;
+}
+
+// Shifts — accumulator mode
+u8 Cpu6502::op_asl_acc() { a_ = do_asl(a_); return 0; }
+u8 Cpu6502::op_lsr_acc() { a_ = do_lsr(a_); return 0; }
+u8 Cpu6502::op_rol_acc() { a_ = do_rol(a_); return 0; }
+u8 Cpu6502::op_ror_acc() { a_ = do_ror(a_); return 0; }
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -472,6 +508,18 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0xD0] = {"BNE", 2, &Cpu6502::op_bne};
     t[0xB0] = {"BCS", 2, &Cpu6502::op_bcs};
     t[0x90] = {"BCC", 2, &Cpu6502::op_bcc};
+
+    // ASL
+    t[0x0A] = {"ASL ACC",   2, &Cpu6502::op_asl_acc};
+
+    // LSR
+    t[0x4A] = {"LSR ACC",   2, &Cpu6502::op_lsr_acc};
+
+    // ROL
+    t[0x2A] = {"ROL ACC",   2, &Cpu6502::op_rol_acc};
+
+    // ROR
+    t[0x6A] = {"ROR ACC",   2, &Cpu6502::op_ror_acc};
 
     // Flag ops
     t[0x18] = {"CLC", 2, &Cpu6502::op_clc};

@@ -404,3 +404,47 @@ TEST_CASE(test_flag_ops) {
     REQUIRE(cpu.cycles() == 18);
 }
 
+TEST_CASE(test_shifts_accumulator) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // ASL A: 0x81 << 1 = 0x02, bit7 → Carry
+    bus.write(0xC000, 0xA9); bus.write(0xC001, 0x81);  // LDA #$81
+    bus.write(0xC002, 0x0A);                            // ASL A
+    // LSR A: 0x02 >> 1 = 0x01, bit0 → Carry
+    bus.write(0xC003, 0x4A);                            // LSR A
+    // SEC then ROL A: 0x01 ROL with carry=1 → (0x01<<1)|1=0x03, old bit7(0x01)=0 → carry=0
+    bus.write(0xC004, 0x38);                            // SEC
+    bus.write(0xC005, 0x2A);                            // ROL A
+    // ROR A: 0x03 ROR with carry=0 → 0x03>>1=0x01, old bit0(0x03)=1 → carry=1
+    bus.write(0xC006, 0x6A);                            // ROR A
+
+    cpu.reset(0xC000);
+
+    cpu.step();  // LDA #$81
+    cpu.step();  // ASL A → A=0x02, Carry=1, N=0, Z=0
+    REQUIRE(cpu.a() == 0x02);
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+    REQUIRE(!cpu.flag(StatusFlag::Negative));
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+
+    cpu.step();  // LSR A → A=0x01, Carry=0 (bit0 of 0x02 = 0), N=0
+    REQUIRE(cpu.a() == 0x01);
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+
+    // At this point A=0x01. SEC sets carry, then ROL: (0x01<<1)|1 = 0x03, old bit7=0 → carry=0
+    cpu.step();  // SEC → carry=1
+    cpu.step();  // ROL A: result=(0x01<<1)|1=0x03, new carry=bit7(0x01)=0
+    REQUIRE(cpu.a() == 0x03);
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+
+    // ROR A with carry=0: result=(0x03>>1)|0=0x01, new carry=bit0(0x03)=1
+    cpu.step();  // ROR A
+    REQUIRE(cpu.a() == 0x01);
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+
+    // Cycle check: LDA(2) + ASL(2) + LSR(2) + SEC(2) + ROL(2) + ROR(2) = 12
+    REQUIRE(cpu.cycles() == 12);
+}
+
