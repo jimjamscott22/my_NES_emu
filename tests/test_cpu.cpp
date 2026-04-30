@@ -401,5 +401,6 @@ TEST_CASE(test_flag_ops) {
 
     cpu.step();  // CLV
     REQUIRE(!cpu.flag(StatusFlag::Overflow));
+    REQUIRE(cpu.cycles() == 18);
 }
 
