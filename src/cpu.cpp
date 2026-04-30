@@ -327,6 +327,15 @@ u8 Cpu6502::op_bne() { return branch_if(!flag(StatusFlag::Zero)); }
 u8 Cpu6502::op_bcs() { return branch_if(flag(StatusFlag::Carry)); }
 u8 Cpu6502::op_bcc() { return branch_if(!flag(StatusFlag::Carry)); }
 
+// Flag ops
+u8 Cpu6502::op_clc() { set_flag(StatusFlag::Carry, false);             return 0; }
+u8 Cpu6502::op_sec() { set_flag(StatusFlag::Carry, true);              return 0; }
+u8 Cpu6502::op_cli() { set_flag(StatusFlag::InterruptDisable, false);  return 0; }
+u8 Cpu6502::op_sei() { set_flag(StatusFlag::InterruptDisable, true);   return 0; }
+u8 Cpu6502::op_clv() { set_flag(StatusFlag::Overflow, false);          return 0; }
+u8 Cpu6502::op_cld() { set_flag(StatusFlag::Decimal, false);           return 0; }
+u8 Cpu6502::op_sed() { set_flag(StatusFlag::Decimal, true);            return 0; }
+
 // ---------------------------------------------------------------------------
 // Instruction table
 // ---------------------------------------------------------------------------
@@ -463,6 +472,15 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0xD0] = {"BNE", 2, &Cpu6502::op_bne};
     t[0xB0] = {"BCS", 2, &Cpu6502::op_bcs};
     t[0x90] = {"BCC", 2, &Cpu6502::op_bcc};
+
+    // Flag ops
+    t[0x18] = {"CLC", 2, &Cpu6502::op_clc};
+    t[0x38] = {"SEC", 2, &Cpu6502::op_sec};
+    t[0x58] = {"CLI", 2, &Cpu6502::op_cli};
+    t[0x78] = {"SEI", 2, &Cpu6502::op_sei};
+    t[0xB8] = {"CLV", 2, &Cpu6502::op_clv};
+    t[0xD8] = {"CLD", 2, &Cpu6502::op_cld};
+    t[0xF8] = {"SED", 2, &Cpu6502::op_sed};
 
     return t;
 }

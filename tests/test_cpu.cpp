@@ -357,3 +357,49 @@ TEST_CASE(test_stx_and_sty) {
     REQUIRE(cpu.cycles() == (2 + 3 + 2 + 3));
 }
 
+TEST_CASE(test_flag_ops) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // SEC sets Carry; CLC clears it
+    bus.write(0xC000, 0x38);  // SEC
+    bus.write(0xC001, 0x18);  // CLC
+    // SEI sets InterruptDisable; CLI clears it
+    bus.write(0xC002, 0x78);  // SEI
+    bus.write(0xC003, 0x58);  // CLI
+    // SED sets Decimal; CLD clears it
+    bus.write(0xC004, 0xF8);  // SED
+    bus.write(0xC005, 0xD8);  // CLD
+    // CLV clears Overflow (set it first via ADC overflow)
+    bus.write(0xC006, 0xA9); bus.write(0xC007, 0x50);  // LDA #$50
+    bus.write(0xC008, 0x69); bus.write(0xC009, 0x50);  // ADC #$50 → overflow
+    bus.write(0xC00A, 0xB8);  // CLV
+
+    cpu.reset(0xC000);
+    cpu.step();  // SEC
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+
+    cpu.step();  // CLC
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+
+    cpu.step();  // SEI
+    REQUIRE(cpu.flag(StatusFlag::InterruptDisable));
+
+    cpu.step();  // CLI
+    REQUIRE(!cpu.flag(StatusFlag::InterruptDisable));
+
+    cpu.step();  // SED
+    REQUIRE(cpu.flag(StatusFlag::Decimal));
+
+    cpu.step();  // CLD
+    REQUIRE(!cpu.flag(StatusFlag::Decimal));
+
+    cpu.step();  // LDA #$50
+    cpu.step();  // ADC #$50 → sets Overflow
+    REQUIRE(cpu.flag(StatusFlag::Overflow));
+
+    cpu.step();  // CLV
+    REQUIRE(!cpu.flag(StatusFlag::Overflow));
+}
+
