@@ -214,6 +214,91 @@ private:
     u8 op_bcs();
     u8 op_bcc();
 
+    // Shift helpers — update Carry/N/Z, return shifted value
+    u8 do_asl(u8 v);
+    u8 do_lsr(u8 v);
+    u8 do_rol(u8 v);
+    u8 do_ror(u8 v);
+
+    // ASL
+    u8 op_asl_acc();
+    u8 op_asl_zp();
+    u8 op_asl_zpx();
+    u8 op_asl_abs();
+    u8 op_asl_absx();
+
+    // LSR
+    u8 op_lsr_acc();
+    u8 op_lsr_zp();
+    u8 op_lsr_zpx();
+    u8 op_lsr_abs();
+    u8 op_lsr_absx();
+
+    // ROL
+    u8 op_rol_acc();
+    u8 op_rol_zp();
+    u8 op_rol_zpx();
+    u8 op_rol_abs();
+    u8 op_rol_absx();
+
+    // ROR
+    u8 op_ror_acc();
+    u8 op_ror_zp();
+    u8 op_ror_zpx();
+    u8 op_ror_abs();
+    u8 op_ror_absx();
+
+    // INC memory
+    u8 op_inc_zp();
+    u8 op_inc_zpx();
+    u8 op_inc_abs();
+    u8 op_inc_absx();
+
+    // DEC memory
+    u8 op_dec_zp();
+    u8 op_dec_zpx();
+    u8 op_dec_abs();
+    u8 op_dec_absx();
+
+    // Register INC/DEC
+    u8 op_inx();
+    u8 op_iny();
+    u8 op_dex();
+    u8 op_dey();
+
+    // Flag ops
+    u8 op_clc();
+    u8 op_sec();
+    u8 op_cli();
+    u8 op_sei();
+    u8 op_clv();
+    u8 op_cld();
+    u8 op_sed();
+
+    // CPX
+    u8 op_cpx_imm();
+    u8 op_cpx_zp();
+    u8 op_cpx_abs();
+
+    // CPY
+    u8 op_cpy_imm();
+    u8 op_cpy_zp();
+    u8 op_cpy_abs();
+
+    // Branches
+    u8 op_bmi();
+    u8 op_bpl();
+    u8 op_bvs();
+    u8 op_bvc();
+
+    // Stack transfers
+    u8 op_tsx();
+    u8 op_txs();
+
+    // BIT
+    u8 op_bit_zp();
+    u8 op_bit_abs();
+
     static std::array<Instruction, 256> build_table();
     static const std::array<Instruction, 256> kInstructionTable;
 };
