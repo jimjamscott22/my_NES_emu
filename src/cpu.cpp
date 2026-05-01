@@ -245,6 +245,16 @@ u8 Cpu6502::op_iny() { ++y_; update_zn(y_); return 0; }
 u8 Cpu6502::op_dex() { --x_; update_zn(x_); return 0; }
 u8 Cpu6502::op_dey() { --y_; update_zn(y_); return 0; }
 
+// CPX
+u8 Cpu6502::op_cpx_imm() { auto r = immediate(); compare(x_, r.value); return 0; }
+u8 Cpu6502::op_cpx_zp()  { auto r = zero_page(); compare(x_, r.value); return 0; }
+u8 Cpu6502::op_cpx_abs() { auto r = absolute();  compare(x_, r.value); return 0; }
+
+// CPY
+u8 Cpu6502::op_cpy_imm() { auto r = immediate(); compare(y_, r.value); return 0; }
+u8 Cpu6502::op_cpy_zp()  { auto r = zero_page(); compare(y_, r.value); return 0; }
+u8 Cpu6502::op_cpy_abs() { auto r = absolute();  compare(y_, r.value); return 0; }
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -587,6 +597,16 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0xD6] = {"DEC ZP,X",  6, &Cpu6502::op_dec_zpx};
     t[0xCE] = {"DEC ABS",   6, &Cpu6502::op_dec_abs};
     t[0xDE] = {"DEC ABS,X", 7, &Cpu6502::op_dec_absx};
+
+    // CPX
+    t[0xE0] = {"CPX IMM", 2, &Cpu6502::op_cpx_imm};
+    t[0xE4] = {"CPX ZP",  3, &Cpu6502::op_cpx_zp};
+    t[0xEC] = {"CPX ABS", 4, &Cpu6502::op_cpx_abs};
+
+    // CPY
+    t[0xC0] = {"CPY IMM", 2, &Cpu6502::op_cpy_imm};
+    t[0xC4] = {"CPY ZP",  3, &Cpu6502::op_cpy_zp};
+    t[0xCC] = {"CPY ABS", 4, &Cpu6502::op_cpy_abs};
 
     // Register INC/DEC
     t[0xE8] = {"INX", 2, &Cpu6502::op_inx};

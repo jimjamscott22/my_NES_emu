@@ -655,3 +655,38 @@ TEST_CASE(test_inx_iny_dex_dey) {
     // LDX(2)+INX(2)+LDY(2)+DEY(2)+INY(2)+DEX(2) = 12
     REQUIRE(cpu.cycles() == 12);
 }
+
+TEST_CASE(test_cpx_cpy) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // CPX #$42 with X=$42 → equal: Z=1, C=1, N=0
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x42);  // LDX #$42
+    bus.write(0xC002, 0xE0); bus.write(0xC003, 0x42);  // CPX #$42
+
+    // CPX #$50 with X=$42 → X < operand: Z=0, C=0, N=1
+    bus.write(0xC004, 0xE0); bus.write(0xC005, 0x50);  // CPX #$50
+
+    // CPY ZP: Y=$10 vs mem=$10 → equal
+    bus.write(0x0020, 0x10);
+    bus.write(0xC006, 0xA0); bus.write(0xC007, 0x10);  // LDY #$10
+    bus.write(0xC008, 0xC4); bus.write(0xC009, 0x20);  // CPY $20
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDX #$42
+    cpu.step();  // CPX #$42
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+    REQUIRE(!cpu.flag(StatusFlag::Negative));
+
+    cpu.step();  // CPX #$50 (X=$42 < $50)
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+    REQUIRE(cpu.flag(StatusFlag::Negative));  // result = $42-$50 = $F2, bit7 set
+
+    cpu.step();  // LDY #$10
+    cpu.step();  // CPY $20 (Y=$10 == mem=$10)
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+}
