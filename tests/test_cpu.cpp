@@ -520,3 +520,56 @@ TEST_CASE(test_rol_ror_zp_roundtrip) {
     // ROL(5) + ROR(5) = 10
     REQUIRE(cpu.cycles() == 10);
 }
+
+TEST_CASE(test_asl_absx_page_cross_still_7_cycles) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0301, 0x01);  // data at $02FF + X=$02 = $0301 (crosses page)
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x02);            // LDX #$02
+    bus.write(0xC002, 0x1E); bus.write(0xC003, 0xFF); bus.write(0xC004, 0x02);  // ASL $02FF,X
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDX (2)
+    cpu.step();  // ASL ABS,X crossing $02xx→$03xx (must still be 7, not 8)
+
+    REQUIRE(bus.read(0x0301) == 0x02);
+    REQUIRE(cpu.cycles() == (2 + 7));
+}
+
+TEST_CASE(test_rol_zpx_modifies_memory) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // ROL $10,X with X=2 → address $12, value 0x01, carry=0 → result=0x02
+    bus.write(0x0012, 0x01);
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x02);  // LDX #$02
+    bus.write(0xC002, 0x36); bus.write(0xC003, 0x10);  // ROL $10,X
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDX (2)
+    cpu.step();  // ROL ZP,X (6)
+
+    REQUIRE(bus.read(0x0012) == 0x02);
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+    REQUIRE(cpu.cycles() == (2 + 6));
+}
+
+TEST_CASE(test_lsr_abs_modifies_memory) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0300, 0xFE);  // data at abs address $0300
+    bus.write(0xC000, 0x4E); bus.write(0xC001, 0x00); bus.write(0xC002, 0x03);  // LSR $0300
+
+    cpu.reset(0xC000);
+    cpu.step();
+
+    REQUIRE(bus.read(0x0300) == 0x7F);
+    REQUIRE(!cpu.flag(StatusFlag::Carry));  // bit0 of 0xFE = 0
+    REQUIRE(!cpu.flag(StatusFlag::Negative));
+    REQUIRE(cpu.cycles() == 6);
+}
