@@ -227,6 +227,24 @@ u8 Cpu6502::op_ror_zpx()  { auto r = zero_page_x(); u8 v = do_ror(r.value); bus_
 u8 Cpu6502::op_ror_abs()  { auto r = absolute();   u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
 u8 Cpu6502::op_ror_absx() { auto r = absolute_x(); u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
 
+// INC memory
+u8 Cpu6502::op_inc_zp()   { auto r = zero_page();  u8 v = static_cast<u8>(r.value + 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_inc_zpx()  { auto r = zero_page_x(); u8 v = static_cast<u8>(r.value + 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_inc_abs()  { auto r = absolute();   u8 v = static_cast<u8>(r.value + 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_inc_absx() { auto r = absolute_x(); u8 v = static_cast<u8>(r.value + 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+
+// DEC memory
+u8 Cpu6502::op_dec_zp()   { auto r = zero_page();  u8 v = static_cast<u8>(r.value - 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_dec_zpx()  { auto r = zero_page_x(); u8 v = static_cast<u8>(r.value - 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_dec_abs()  { auto r = absolute();   u8 v = static_cast<u8>(r.value - 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_dec_absx() { auto r = absolute_x(); u8 v = static_cast<u8>(r.value - 1); update_zn(v); bus_->write(r.addr, v); return 0; }
+
+// Register INC/DEC
+u8 Cpu6502::op_inx() { ++x_; update_zn(x_); return 0; }
+u8 Cpu6502::op_iny() { ++y_; update_zn(y_); return 0; }
+u8 Cpu6502::op_dex() { --x_; update_zn(x_); return 0; }
+u8 Cpu6502::op_dey() { --y_; update_zn(y_); return 0; }
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -557,6 +575,24 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0x76] = {"ROR ZP,X",  6, &Cpu6502::op_ror_zpx};
     t[0x6E] = {"ROR ABS",   6, &Cpu6502::op_ror_abs};
     t[0x7E] = {"ROR ABS,X", 7, &Cpu6502::op_ror_absx};
+
+    // INC
+    t[0xE6] = {"INC ZP",    5, &Cpu6502::op_inc_zp};
+    t[0xF6] = {"INC ZP,X",  6, &Cpu6502::op_inc_zpx};
+    t[0xEE] = {"INC ABS",   6, &Cpu6502::op_inc_abs};
+    t[0xFE] = {"INC ABS,X", 7, &Cpu6502::op_inc_absx};
+
+    // DEC
+    t[0xC6] = {"DEC ZP",    5, &Cpu6502::op_dec_zp};
+    t[0xD6] = {"DEC ZP,X",  6, &Cpu6502::op_dec_zpx};
+    t[0xCE] = {"DEC ABS",   6, &Cpu6502::op_dec_abs};
+    t[0xDE] = {"DEC ABS,X", 7, &Cpu6502::op_dec_absx};
+
+    // Register INC/DEC
+    t[0xE8] = {"INX", 2, &Cpu6502::op_inx};
+    t[0xC8] = {"INY", 2, &Cpu6502::op_iny};
+    t[0xCA] = {"DEX", 2, &Cpu6502::op_dex};
+    t[0x88] = {"DEY", 2, &Cpu6502::op_dey};
 
     // Flag ops
     t[0x18] = {"CLC", 2, &Cpu6502::op_clc};

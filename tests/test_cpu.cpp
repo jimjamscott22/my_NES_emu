@@ -573,3 +573,85 @@ TEST_CASE(test_lsr_abs_modifies_memory) {
     REQUIRE(!cpu.flag(StatusFlag::Negative));
     REQUIRE(cpu.cycles() == 6);
 }
+
+TEST_CASE(test_inc_dec_zp) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0010, 0xFE);
+    bus.write(0xC000, 0xE6); bus.write(0xC001, 0x10);  // INC $10 → $FF, N=1
+    bus.write(0xC002, 0xE6); bus.write(0xC003, 0x10);  // INC $10 → $00, Z=1, wraps
+    bus.write(0xC004, 0xC6); bus.write(0xC005, 0x10);  // DEC $10 → $FF, N=1
+
+    cpu.reset(0xC000);
+
+    cpu.step();  // INC → $FF
+    REQUIRE(bus.read(0x0010) == 0xFF);
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+
+    cpu.step();  // INC → $00 (wraps)
+    REQUIRE(bus.read(0x0010) == 0x00);
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(!cpu.flag(StatusFlag::Negative));
+
+    cpu.step();  // DEC → $FF
+    REQUIRE(bus.read(0x0010) == 0xFF);
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+
+    // INC(5) + INC(5) + DEC(5) = 15
+    REQUIRE(cpu.cycles() == 15);
+}
+
+TEST_CASE(test_inc_absx_always_7_cycles) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0206, 0x10);
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x06);            // LDX #$06
+    bus.write(0xC002, 0xFE); bus.write(0xC003, 0x00); bus.write(0xC004, 0x02);  // INC $0200,X
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDX (2)
+    cpu.step();  // INC ABS,X (always 7)
+
+    REQUIRE(bus.read(0x0206) == 0x11);
+    REQUIRE(cpu.cycles() == (2 + 7));
+}
+
+TEST_CASE(test_inx_iny_dex_dey) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0xFF);  // LDX #$FF
+    bus.write(0xC002, 0xE8);                            // INX → $00, Z=1
+    bus.write(0xC003, 0xA0); bus.write(0xC004, 0x01);  // LDY #$01
+    bus.write(0xC005, 0x88);                            // DEY → $00, Z=1
+    bus.write(0xC006, 0xC8);                            // INY → $01
+    bus.write(0xC007, 0xCA);                            // DEX → $FF, N=1
+
+    cpu.reset(0xC000);
+
+    cpu.step();  // LDX #$FF
+    cpu.step();  // INX → $00
+    REQUIRE(cpu.x() == 0x00);
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+
+    cpu.step();  // LDY #$01
+    cpu.step();  // DEY → $00
+    REQUIRE(cpu.y() == 0x00);
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+
+    cpu.step();  // INY → $01
+    REQUIRE(cpu.y() == 0x01);
+
+    cpu.step();  // DEX → $FF
+    REQUIRE(cpu.x() == 0xFF);
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+
+    // LDX(2)+INX(2)+LDY(2)+DEY(2)+INY(2)+DEX(2) = 12
+    REQUIRE(cpu.cycles() == 12);
+}
