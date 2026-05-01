@@ -752,3 +752,41 @@ TEST_CASE(test_tsx_txs) {
     // TXS does NOT update N/Z — N should still reflect LDX #$EF (bit7=1, so N=1)
     REQUIRE(cpu.flag(StatusFlag::Negative));  // unchanged from LDX
 }
+TEST_CASE(test_bit_zp_and_abs) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // BIT ZP: mem=$C2 (1100 0010), A=$01
+    // Z = (A & mem)==0 → (0x01 & 0xC2)=0x00 → Z=1
+    // N = bit7(mem) = 1
+    // V = bit6(mem) = 1
+    // A unchanged
+    bus.write(0x0010, 0xC2);
+    bus.write(0xC000, 0xA9); bus.write(0xC001, 0x01);  // LDA #$01
+    bus.write(0xC002, 0x24); bus.write(0xC003, 0x10);  // BIT $10
+
+    // BIT ABS: mem=$3F (0011 1111), A=$01
+    // Z = (0x01 & 0x3F) = 0x01 ≠ 0 → Z=0
+    // N = bit7(0x3F) = 0
+    // V = bit6(0x3F) = 0
+    bus.write(0x0200, 0x3F);
+    bus.write(0xC004, 0x2C); bus.write(0xC005, 0x00); bus.write(0xC006, 0x02);  // BIT $0200
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDA #$01
+    cpu.step();  // BIT $10
+    REQUIRE(cpu.a() == 0x01);  // A unchanged
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+    REQUIRE(cpu.flag(StatusFlag::Overflow));
+
+    cpu.step();  // BIT $0200
+    REQUIRE(cpu.a() == 0x01);  // A still unchanged
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+    REQUIRE(!cpu.flag(StatusFlag::Negative));
+    REQUIRE(!cpu.flag(StatusFlag::Overflow));
+
+    // LDA(2) + BIT ZP(3) + BIT ABS(4) = 9
+    REQUIRE(cpu.cycles() == 9);
+}

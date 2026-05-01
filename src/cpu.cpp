@@ -264,6 +264,23 @@ u8 Cpu6502::op_bvc() { return branch_if(!flag(StatusFlag::Overflow)); }
 u8 Cpu6502::op_tsx() { x_ = sp_; update_zn(x_); return 0; }
 u8 Cpu6502::op_txs() { sp_ = x_; return 0; }
 
+// BIT
+u8 Cpu6502::op_bit_zp() {
+    auto r = zero_page();
+    set_flag(StatusFlag::Zero,     (a_ & r.value) == 0);
+    set_flag(StatusFlag::Negative, (r.value & 0x80) != 0);
+    set_flag(StatusFlag::Overflow, (r.value & 0x40) != 0);
+    return 0;
+}
+
+u8 Cpu6502::op_bit_abs() {
+    auto r = absolute();
+    set_flag(StatusFlag::Zero,     (a_ & r.value) == 0);
+    set_flag(StatusFlag::Negative, (r.value & 0x80) != 0);
+    set_flag(StatusFlag::Overflow, (r.value & 0x40) != 0);
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -550,6 +567,10 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0x98] = {"TYA", 2, &Cpu6502::op_tya};
     t[0xBA] = {"TSX", 2, &Cpu6502::op_tsx};
     t[0x9A] = {"TXS", 2, &Cpu6502::op_txs};
+
+    // BIT
+    t[0x24] = {"BIT ZP",  3, &Cpu6502::op_bit_zp};
+    t[0x2C] = {"BIT ABS", 4, &Cpu6502::op_bit_abs};
 
     // Stack
     t[0x48] = {"PHA", 3, &Cpu6502::op_pha};
