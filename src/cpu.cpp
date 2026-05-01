@@ -408,7 +408,8 @@ u8 Cpu6502::op_php() {
 
 u8 Cpu6502::op_plp() {
     status_ = pop();
-    status_ |= kUnusedFlag;  // bit 5 is always set on 6502
+    status_ |= kUnusedFlag;                               // bit 5 always set
+    status_ &= ~static_cast<u8>(StatusFlag::Break);      // bit 4 has no physical register
     return 0;
 }
 

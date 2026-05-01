@@ -790,3 +790,76 @@ TEST_CASE(test_bit_zp_and_abs) {
     // LDA(2) + BIT ZP(3) + BIT ABS(4) = 9
     REQUIRE(cpu.cycles() == 9);
 }
+
+TEST_CASE(test_branch_not_taken_no_extra_cycles) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // BPL not taken: N=1 (load #$80), BPL should not branch — 2 cycles, PC advances past operand
+    bus.write(0xC000, 0xA9); bus.write(0xC001, 0x80);  // LDA #$80 → N=1
+    bus.write(0xC002, 0x10); bus.write(0xC003, 0x10);  // BPL +16 (not taken)
+    bus.write(0xC004, 0xA9); bus.write(0xC005, 0x42);  // LDA #$42 (executes because branch not taken)
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDA #$80 (2)
+    cpu.step();  // BPL not taken (2)
+    cpu.step();  // LDA #$42 (2)
+
+    REQUIRE(cpu.a() == 0x42);
+    REQUIRE(cpu.cycles() == 6);  // LDA(2) + BPL-not-taken(2) + LDA(2)
+}
+
+TEST_CASE(test_dec_abs_and_inc_abs) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0300, 0x01);
+    bus.write(0xC000, 0xCE); bus.write(0xC001, 0x00); bus.write(0xC002, 0x03);  // DEC $0300 → $00, Z=1
+    bus.write(0xC003, 0xEE); bus.write(0xC004, 0x00); bus.write(0xC005, 0x03);  // INC $0300 → $01
+
+    cpu.reset(0xC000);
+    cpu.step();  // DEC ABS (6)
+    REQUIRE(bus.read(0x0300) == 0x00);
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+
+    cpu.step();  // INC ABS (6)
+    REQUIRE(bus.read(0x0300) == 0x01);
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+
+    REQUIRE(cpu.cycles() == 12);
+}
+
+TEST_CASE(test_cpx_zp_abs_and_cpy_abs) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    bus.write(0x0010, 0x30);  // ZP data for CPX
+    bus.write(0x0300, 0x30);  // ABS data for CPY
+
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x30);  // LDX #$30
+    bus.write(0xC002, 0xE4); bus.write(0xC003, 0x10);  // CPX $10 → X($30) == mem($30): Z=1, C=1
+    bus.write(0xC004, 0xEC); bus.write(0xC005, 0x00); bus.write(0xC006, 0x03);  // CPX $0300 → equal: Z=1
+    bus.write(0xC007, 0xA0); bus.write(0xC008, 0x30);  // LDY #$30
+    bus.write(0xC009, 0xCC); bus.write(0xC00A, 0x00); bus.write(0xC00B, 0x03);  // CPY $0300 → equal: Z=1
+
+    cpu.reset(0xC000);
+    cpu.step();  // LDX #$30
+    cpu.step();  // CPX ZP
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+
+    cpu.step();  // CPX ABS
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+
+    cpu.step();  // LDY #$30
+    cpu.step();  // CPY ABS
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+
+    // LDX(2)+CPX_ZP(3)+CPX_ABS(4)+LDY(2)+CPY_ABS(4) = 15
+    REQUIRE(cpu.cycles() == 15);
+}
