@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake *)",
+      "Bash(./build/cpu_tests*)",
+      "Bash(./build/nes_emulator*)",
+      "Bash(git *)",
+      "Read(src/**)",
+      "Read(include/**)",
+      "Read(tests/**)"
+    ]
+  }
+}
