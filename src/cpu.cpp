@@ -434,6 +434,29 @@ u8 Cpu6502::op_rts() {
     return 0;
 }
 
+u8 Cpu6502::op_brk() {
+    // Consume padding byte; return address pushed is PC+1 (one past the padding byte)
+    ++pc_;
+    push(static_cast<u8>(pc_ >> 8));
+    push(static_cast<u8>(pc_ & 0xFF));
+    push(status_ | static_cast<u8>(StatusFlag::Break) | kUnusedFlag);
+    set_flag(StatusFlag::InterruptDisable, true);
+    u16 lo = bus_->read(0xFFFE);
+    u16 hi = bus_->read(0xFFFF);
+    pc_ = static_cast<u16>((hi << 8) | lo);
+    return 0;
+}
+
+u8 Cpu6502::op_rti() {
+    status_ = pop();
+    status_ |= kUnusedFlag;
+    status_ &= ~static_cast<u8>(StatusFlag::Break);
+    u8 lo = pop();
+    u8 hi = pop();
+    pc_ = static_cast<u16>((hi << 8) | lo);
+    return 0;
+}
+
 u8 Cpu6502::op_beq() { return branch_if(flag(StatusFlag::Zero)); }
 u8 Cpu6502::op_bne() { return branch_if(!flag(StatusFlag::Zero)); }
 u8 Cpu6502::op_bcs() { return branch_if(flag(StatusFlag::Carry)); }
@@ -584,6 +607,8 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0x6C] = {"JMP IND", 5, &Cpu6502::op_jmp_ind};
     t[0x20] = {"JSR",     6, &Cpu6502::op_jsr};
     t[0x60] = {"RTS",     6, &Cpu6502::op_rts};
+    t[0x00] = {"BRK",     7, &Cpu6502::op_brk};
+    t[0x40] = {"RTI",     6, &Cpu6502::op_rti};
 
     // Branches
     t[0xF0] = {"BEQ", 2, &Cpu6502::op_beq};

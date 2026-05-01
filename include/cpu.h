@@ -299,6 +299,10 @@ private:
     u8 op_bit_zp();
     u8 op_bit_abs();
 
+    // Interrupts
+    u8 op_brk();
+    u8 op_rti();
+
     static std::array<Instruction, 256> build_table();
     static const std::array<Instruction, 256> kInstructionTable;
 };

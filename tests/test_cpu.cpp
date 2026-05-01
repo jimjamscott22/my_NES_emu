@@ -863,3 +863,104 @@ TEST_CASE(test_cpx_zp_abs_and_cpy_abs) {
     // LDX(2)+CPX_ZP(3)+CPX_ABS(4)+LDY(2)+CPY_ABS(4) = 15
     REQUIRE(cpu.cycles() == 15);
 }
+
+TEST_CASE(test_brk_pushes_state_and_jumps_to_irq_vector) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // IRQ handler at $E000; vector at $FFFE/$FFFF
+    bus.write(0xFFFE, 0x00);
+    bus.write(0xFFFF, 0xE0);
+    bus.write(0xE000, 0xA9);  // LDA #$AB (IRQ handler)
+    bus.write(0xE001, 0xAB);
+
+    bus.write(0xC000, 0x00);  // BRK (+ implied padding byte at $C001)
+
+    cpu.reset(0xC000);
+    u8 status_before = cpu.status();
+    u8 sp_before = cpu.sp();
+    cpu.step();  // BRK
+
+    // PC should now be at the IRQ handler
+    REQUIRE(cpu.pc() == 0xE000);
+    // I flag must be set
+    REQUIRE(cpu.flag(StatusFlag::InterruptDisable));
+    // Three bytes pushed: PCH, PCL, status — SP drops by 3
+    REQUIRE(cpu.sp() == static_cast<u8>(sp_before - 3));
+    // Pushed status must have Break and Unused bits set
+    u8 pushed_status = bus.read(static_cast<u16>(0x0100 | static_cast<u8>(sp_before - 2)));
+    REQUIRE((pushed_status & static_cast<u8>(StatusFlag::Break)) != 0);
+    REQUIRE((pushed_status & static_cast<u8>(StatusFlag::Unused)) != 0);
+    // Pushed PC is $C002 (opcode PC + 1 for padding byte)
+    u8 pushed_pch = bus.read(static_cast<u16>(0x0100 | sp_before));
+    u8 pushed_pcl = bus.read(static_cast<u16>(0x0100 | static_cast<u8>(sp_before - 1)));
+    REQUIRE(pushed_pch == 0xC0);
+    REQUIRE(pushed_pcl == 0x02);
+    REQUIRE(cpu.cycles() == 7);
+    (void)status_before;
+}
+
+TEST_CASE(test_rti_restores_state_and_returns) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // IRQ vector -> $E000
+    bus.write(0xFFFE, 0x00);
+    bus.write(0xFFFF, 0xE0);
+
+    // IRQ handler: set carry, then RTI
+    bus.write(0xE000, 0x38);  // SEC
+    bus.write(0xE001, 0x40);  // RTI
+
+    // Main program: BRK, then LDA #$55
+    bus.write(0xC000, 0x00);  // BRK
+    bus.write(0xC002, 0xA9);  // LDA #$55
+    bus.write(0xC003, 0x55);
+
+    cpu.reset(0xC000);
+    cpu.step();  // BRK  -> jumps to $E000, pushes return addr $C002
+    cpu.step();  // SEC  -> Carry = 1
+    cpu.step();  // RTI  -> pops status + PC; returns to $C002
+
+    // RTI must restore PC to $C002
+    REQUIRE(cpu.pc() == 0xC002);
+    // Stack balanced
+    REQUIRE(cpu.sp() == 0xFD);
+    // Carry was set inside the handler but status popped to pre-BRK value (no carry)
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+    // BRK(7) + SEC(2) + RTI(6) = 15
+    REQUIRE(cpu.cycles() == 15);
+}
+
+TEST_CASE(test_brk_rti_round_trip_continues_execution) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+
+    // IRQ vector -> $E000
+    bus.write(0xFFFE, 0x00);
+    bus.write(0xFFFF, 0xE0);
+
+    // IRQ handler: LDA #$42, RTI
+    bus.write(0xE000, 0xA9);
+    bus.write(0xE001, 0x42);
+    bus.write(0xE002, 0x40);  // RTI
+
+    // Main: BRK, then LDA #$10
+    bus.write(0xC000, 0x00);  // BRK
+    bus.write(0xC002, 0xA9);  // LDA #$10
+    bus.write(0xC003, 0x10);
+
+    cpu.reset(0xC000);
+    cpu.step();  // BRK
+    cpu.step();  // LDA #$42
+    cpu.step();  // RTI
+    cpu.step();  // LDA #$10
+
+    REQUIRE(cpu.a() == 0x10);
+    REQUIRE(cpu.sp() == 0xFD);
+    // BRK(7) + LDA(2) + RTI(6) + LDA(2) = 17
+    REQUIRE(cpu.cycles() == 17);
+}
