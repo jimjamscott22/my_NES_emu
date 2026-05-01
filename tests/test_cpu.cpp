@@ -460,3 +460,63 @@ TEST_CASE(test_shifts_accumulator) {
     REQUIRE(cpu.cycles() == 16);  // 12 + LDA(2) + ASL(2)
 }
 
+TEST_CASE(test_asl_zp_modifies_memory) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    bus.write(0x0010, 0x41);                            // value at ZP $10
+    bus.write(0xC000, 0x06); bus.write(0xC001, 0x10);  // ASL $10
+    cpu.reset(0xC000);
+    cpu.step();
+    REQUIRE(bus.read(0x0010) == 0x82);
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+    REQUIRE(cpu.cycles() == 5);
+}
+TEST_CASE(test_lsr_zp_modifies_memory) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    bus.write(0x0020, 0x03);                            // value at ZP $20
+    bus.write(0xC000, 0x46); bus.write(0xC001, 0x20);  // LSR $20
+    cpu.reset(0xC000);
+    cpu.step();
+    REQUIRE(bus.read(0x0020) == 0x01);
+    REQUIRE(cpu.flag(StatusFlag::Carry));   // bit0 of 0x03 = 1
+    REQUIRE(!cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.cycles() == 5);
+}
+TEST_CASE(test_asl_absx_always_7_cycles) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    bus.write(0x0205, 0x01);
+    bus.write(0xC000, 0xA2); bus.write(0xC001, 0x05);            // LDX #$05
+    bus.write(0xC002, 0x1E); bus.write(0xC003, 0x00); bus.write(0xC004, 0x02);  // ASL $0200,X
+    cpu.reset(0xC000);
+    cpu.step();  // LDX (2)
+    cpu.step();  // ASL ABS,X (always 7, no page cross involved)
+    REQUIRE(bus.read(0x0205) == 0x02);
+    REQUIRE(cpu.cycles() == (2 + 7));
+}
+TEST_CASE(test_rol_ror_zp_roundtrip) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    // ROL $10 with carry=0: 0x80 → 0x00, Carry=1, Zero=1
+    bus.write(0x0010, 0x80);
+    bus.write(0xC000, 0x26); bus.write(0xC001, 0x10);  // ROL $10
+    // ROR $10 with carry=1 (from ROL): 0x00 → 0x80, Carry=0
+    bus.write(0xC002, 0x66); bus.write(0xC003, 0x10);  // ROR $10
+    cpu.reset(0xC000);
+    cpu.step();  // ROL $10: 0x80→0x00, carry=1, zero=1
+    REQUIRE(bus.read(0x0010) == 0x00);
+    REQUIRE(cpu.flag(StatusFlag::Zero));
+    REQUIRE(cpu.flag(StatusFlag::Carry));
+    cpu.step();  // ROR $10: 0x00 with carry=1 → 0x80, carry=0
+    REQUIRE(bus.read(0x0010) == 0x80);
+    REQUIRE(!cpu.flag(StatusFlag::Carry));
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+    // ROL(5) + ROR(5) = 10
+    REQUIRE(cpu.cycles() == 10);
+}

@@ -206,6 +206,27 @@ u8 Cpu6502::op_lsr_acc() { a_ = do_lsr(a_); return 0; }
 u8 Cpu6502::op_rol_acc() { a_ = do_rol(a_); return 0; }
 u8 Cpu6502::op_ror_acc() { a_ = do_ror(a_); return 0; }
 
+// Shifts — memory (read-modify-write; ABS,X always pays full cycles)
+u8 Cpu6502::op_asl_zp()   { auto r = zero_page();  u8 v = do_asl(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_asl_zpx()  { auto r = zero_page_x(); u8 v = do_asl(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_asl_abs()  { auto r = absolute();   u8 v = do_asl(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_asl_absx() { auto r = absolute_x(); u8 v = do_asl(r.value); bus_->write(r.addr, v); return 0; }
+
+u8 Cpu6502::op_lsr_zp()   { auto r = zero_page();  u8 v = do_lsr(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_lsr_zpx()  { auto r = zero_page_x(); u8 v = do_lsr(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_lsr_abs()  { auto r = absolute();   u8 v = do_lsr(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_lsr_absx() { auto r = absolute_x(); u8 v = do_lsr(r.value); bus_->write(r.addr, v); return 0; }
+
+u8 Cpu6502::op_rol_zp()   { auto r = zero_page();  u8 v = do_rol(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_rol_zpx()  { auto r = zero_page_x(); u8 v = do_rol(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_rol_abs()  { auto r = absolute();   u8 v = do_rol(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_rol_absx() { auto r = absolute_x(); u8 v = do_rol(r.value); bus_->write(r.addr, v); return 0; }
+
+u8 Cpu6502::op_ror_zp()   { auto r = zero_page();  u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_ror_zpx()  { auto r = zero_page_x(); u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_ror_abs()  { auto r = absolute();   u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
+u8 Cpu6502::op_ror_absx() { auto r = absolute_x(); u8 v = do_ror(r.value); bus_->write(r.addr, v); return 0; }
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -511,15 +532,31 @@ std::array<Instruction, 256> Cpu6502::build_table() {
 
     // ASL
     t[0x0A] = {"ASL ACC",   2, &Cpu6502::op_asl_acc};
+    t[0x06] = {"ASL ZP",    5, &Cpu6502::op_asl_zp};
+    t[0x16] = {"ASL ZP,X",  6, &Cpu6502::op_asl_zpx};
+    t[0x0E] = {"ASL ABS",   6, &Cpu6502::op_asl_abs};
+    t[0x1E] = {"ASL ABS,X", 7, &Cpu6502::op_asl_absx};
 
     // LSR
     t[0x4A] = {"LSR ACC",   2, &Cpu6502::op_lsr_acc};
+    t[0x46] = {"LSR ZP",    5, &Cpu6502::op_lsr_zp};
+    t[0x56] = {"LSR ZP,X",  6, &Cpu6502::op_lsr_zpx};
+    t[0x4E] = {"LSR ABS",   6, &Cpu6502::op_lsr_abs};
+    t[0x5E] = {"LSR ABS,X", 7, &Cpu6502::op_lsr_absx};
 
     // ROL
     t[0x2A] = {"ROL ACC",   2, &Cpu6502::op_rol_acc};
+    t[0x26] = {"ROL ZP",    5, &Cpu6502::op_rol_zp};
+    t[0x36] = {"ROL ZP,X",  6, &Cpu6502::op_rol_zpx};
+    t[0x2E] = {"ROL ABS",   6, &Cpu6502::op_rol_abs};
+    t[0x3E] = {"ROL ABS,X", 7, &Cpu6502::op_rol_absx};
 
     // ROR
     t[0x6A] = {"ROR ACC",   2, &Cpu6502::op_ror_acc};
+    t[0x66] = {"ROR ZP",    5, &Cpu6502::op_ror_zp};
+    t[0x76] = {"ROR ZP,X",  6, &Cpu6502::op_ror_zpx};
+    t[0x6E] = {"ROR ABS",   6, &Cpu6502::op_ror_abs};
+    t[0x7E] = {"ROR ABS,X", 7, &Cpu6502::op_ror_absx};
 
     // Flag ops
     t[0x18] = {"CLC", 2, &Cpu6502::op_clc};
