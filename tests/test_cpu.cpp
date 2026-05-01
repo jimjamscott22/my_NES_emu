@@ -690,3 +690,65 @@ TEST_CASE(test_cpx_cpy) {
     REQUIRE(cpu.flag(StatusFlag::Zero));
     REQUIRE(cpu.flag(StatusFlag::Carry));
 }
+TEST_CASE(test_bpl_bmi) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    // BPL: load positive ($01), branch taken (+2 offset → skip LDA #$FF)
+    bus.write(0xC000, 0xA9); bus.write(0xC001, 0x01);  // LDA #$01 (positive)
+    bus.write(0xC002, 0x10); bus.write(0xC003, 0x02);  // BPL +2 → $C006
+    bus.write(0xC004, 0xA9); bus.write(0xC005, 0xFF);  // LDA #$FF (skipped)
+    bus.write(0xC006, 0xA9); bus.write(0xC007, 0x80);  // LDA #$80 (target, sets N)
+    bus.write(0xC008, 0x30); bus.write(0xC009, 0x02);  // BMI +2 → $C00C
+    bus.write(0xC00A, 0xA9); bus.write(0xC00B, 0x00);  // LDA #$00 (skipped)
+    bus.write(0xC00C, 0xA9); bus.write(0xC00D, 0x42);  // LDA #$42 (target)
+    cpu.reset(0xC000);
+    cpu.step();  // LDA #$01
+    cpu.step();  // BPL taken
+    cpu.step();  // LDA #$80 (branch target)
+    cpu.step();  // BMI taken
+    cpu.step();  // LDA #$42 (branch target)
+    REQUIRE(cpu.a() == 0x42);
+}
+TEST_CASE(test_bvs_bvc) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    // ADC 0x50+0x50 sets overflow; BVS taken; CLV; BVC taken
+    bus.write(0xC000, 0xA9); bus.write(0xC001, 0x50);  // LDA #$50
+    bus.write(0xC002, 0x69); bus.write(0xC003, 0x50);  // ADC #$50 → V=1
+    bus.write(0xC004, 0x70); bus.write(0xC005, 0x02);  // BVS +2 → $C008
+    bus.write(0xC006, 0xA9); bus.write(0xC007, 0x00);  // LDA #$00 (skipped)
+    bus.write(0xC008, 0xB8);                            // CLV → V=0
+    bus.write(0xC009, 0x50); bus.write(0xC00A, 0x02);  // BVC +2 → $C00D
+    bus.write(0xC00B, 0xA9); bus.write(0xC00C, 0x00);  // LDA #$00 (skipped)
+    bus.write(0xC00D, 0xA9); bus.write(0xC00E, 0x11);  // LDA #$11 (target)
+    cpu.reset(0xC000);
+    cpu.step();  // LDA
+    cpu.step();  // ADC → V=1
+    cpu.step();  // BVS taken
+    cpu.step();  // CLV → V=0
+    cpu.step();  // BVC taken
+    cpu.step();  // LDA #$11
+    REQUIRE(cpu.a() == 0x11);
+    REQUIRE(!cpu.flag(StatusFlag::Overflow));
+}
+TEST_CASE(test_tsx_txs) {
+    Bus bus;
+    Cpu6502 cpu(bus);
+    bus.reset();
+    // After reset SP=0xFD. TSX → X=$FD, N=1
+    bus.write(0xC000, 0xBA);                            // TSX
+    // TXS: LDX #$EF, TXS → SP=$EF (no ZN update)
+    bus.write(0xC001, 0xA2); bus.write(0xC002, 0xEF);  // LDX #$EF
+    bus.write(0xC003, 0x9A);                            // TXS
+    cpu.reset(0xC000);
+    cpu.step();  // TSX
+    REQUIRE(cpu.x() == 0xFD);
+    REQUIRE(cpu.flag(StatusFlag::Negative));
+    cpu.step();  // LDX #$EF
+    cpu.step();  // TXS → SP=$EF
+    REQUIRE(cpu.sp() == 0xEF);
+    // TXS does NOT update N/Z — N should still reflect LDX #$EF (bit7=1, so N=1)
+    REQUIRE(cpu.flag(StatusFlag::Negative));  // unchanged from LDX
+}

@@ -255,6 +255,15 @@ u8 Cpu6502::op_cpy_imm() { auto r = immediate(); compare(y_, r.value); return 0;
 u8 Cpu6502::op_cpy_zp()  { auto r = zero_page(); compare(y_, r.value); return 0; }
 u8 Cpu6502::op_cpy_abs() { auto r = absolute();  compare(y_, r.value); return 0; }
 
+// Remaining branches
+u8 Cpu6502::op_bmi() { return branch_if(flag(StatusFlag::Negative)); }
+u8 Cpu6502::op_bpl() { return branch_if(!flag(StatusFlag::Negative)); }
+u8 Cpu6502::op_bvs() { return branch_if(flag(StatusFlag::Overflow)); }
+u8 Cpu6502::op_bvc() { return branch_if(!flag(StatusFlag::Overflow)); }
+// Stack transfers
+u8 Cpu6502::op_tsx() { x_ = sp_; update_zn(x_); return 0; }
+u8 Cpu6502::op_txs() { sp_ = x_; return 0; }
+
 // ---------------------------------------------------------------------------
 // Opcode handlers
 // ---------------------------------------------------------------------------
@@ -539,6 +548,8 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0xA8] = {"TAY", 2, &Cpu6502::op_tay};
     t[0x8A] = {"TXA", 2, &Cpu6502::op_txa};
     t[0x98] = {"TYA", 2, &Cpu6502::op_tya};
+    t[0xBA] = {"TSX", 2, &Cpu6502::op_tsx};
+    t[0x9A] = {"TXS", 2, &Cpu6502::op_txs};
 
     // Stack
     t[0x48] = {"PHA", 3, &Cpu6502::op_pha};
@@ -557,6 +568,12 @@ std::array<Instruction, 256> Cpu6502::build_table() {
     t[0xD0] = {"BNE", 2, &Cpu6502::op_bne};
     t[0xB0] = {"BCS", 2, &Cpu6502::op_bcs};
     t[0x90] = {"BCC", 2, &Cpu6502::op_bcc};
+
+    // Remaining branches
+    t[0x30] = {"BMI", 2, &Cpu6502::op_bmi};
+    t[0x10] = {"BPL", 2, &Cpu6502::op_bpl};
+    t[0x70] = {"BVS", 2, &Cpu6502::op_bvs};
+    t[0x50] = {"BVC", 2, &Cpu6502::op_bvc};
 
     // ASL
     t[0x0A] = {"ASL ACC",   2, &Cpu6502::op_asl_acc};
