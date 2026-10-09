@@ -2,11 +2,14 @@
 
 #include <array>
 #include <vector>
+#include <optional>
+
+#include "cartridge.h"
 
 #include "types.h"
 
-// Simple 64KB memory bus placeholder.
-// Mappers and memory-mapped devices can be hooked in later.
+// Flat memory for CPU unit tests; inserting a cartridge enables NES RAM mirroring
+// and mapper-0 PRG ROM. PPU/APU registers remain placeholders.
 class Bus {
 public:
     Bus();
@@ -19,8 +22,10 @@ public:
     void load(const std::vector<u8>& data, u16 start_addr = 0x8000);
 
     void reset();
+    void insert_cartridge(Cartridge cartridge);
 
 private:
     std::array<u8, 0x10000> ram_;
+    std::optional<Cartridge> cartridge_;
 };
 

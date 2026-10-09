@@ -693,6 +693,10 @@ std::array<Instruction, 256> Cpu6502::build_table() {
 const std::array<Instruction, 256> Cpu6502::kInstructionTable =
     Cpu6502::build_table();
 
+bool Cpu6502::supports_opcode(u8 opcode) {
+    return opcode == 0xEA || kInstructionTable[opcode].handler != &Cpu6502::op_nop;
+}
+
 void Cpu6502::step() {
     u8 opcode = fetch8();
     const auto& inst = kInstructionTable[opcode];

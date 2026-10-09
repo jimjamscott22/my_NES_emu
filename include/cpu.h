@@ -38,6 +38,7 @@ public:
     // entry point used by the common nestest ROM. Override as needed.
     void reset(u16 start_vector = 0xC000);
     void step();
+    static bool supports_opcode(u8 opcode);
 
     u64 cycles() const { return cycles_; }
     u16 pc() const { return pc_; }
